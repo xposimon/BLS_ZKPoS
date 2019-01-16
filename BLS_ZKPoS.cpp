@@ -10,7 +10,10 @@ int BLS_ZKPoS::H(mpz_t z)
 
 int BLS_ZKPoS::h(element_t R)
 {
-    element_set(this->hash_value, R);
+    unsigned char hash[1024];
+    element_to_bytes(hash, R);
+
+    element_from_hash(this->small_hash_value, hash, 1024);
 }
 
 int BLS_ZKPoS::exportPk(std::string pkFileName)
@@ -95,11 +98,14 @@ int BLS_ZKPoS::commit()
     element_random(this->rsigma);
     element_random(this->p);
 
-    element_pairing(tmp, this->g1, this->g);
-    element_pow_zn(tmp, tmp, this->rsigma);
+    element_printf("rm:%B\n", this->rm);
 
-    element_init_same_as(this->R, tmp);
-    element_init_same_as(this->commitment, tmp);
+    element_pairing(tmp, this->g1, this->g);
+
+    element_pow_zn(tmp, tmp, this->rsigma);
+    element_set(this->R, tmp);
+    this->h(tmp);
+    element_set(this->commitment, this->small_hash_value);
     return 1;
 }
 
@@ -174,14 +180,17 @@ int BLS_ZKPoS::prove(std::vector<int> index, std::vector<myelement> v, std::vect
 
 int BLS_ZKPoS::verify(std::vector<int> index, Proof pi, std::vector<myelement> names, std::vector<myelement> v)
 {
-    element_t left, right, tmp, tmp2;
+    element_t left, right, tmp;
+    element_t g1tmp, g1tmp2;
+    element_init_G1(g1tmp2, this->pairing);
+    element_init_G1(g1tmp, this->pairing);
     element_init_GT(left, this->pairing);
     element_init_GT(right, this->pairing);
     element_init_GT(tmp, this->pairing);
-    element_init_GT(tmp2, this->pairing);
-    element_set1(tmp2);
-    element_pow_zn(left, pi.ibzl, this->commitment);
-    element_pairing(left, left, this->g);
+    element_set1(g1tmp2);
+
+    element_pow_zn(g1tmp, pi.ibzl, this->commitment);
+    element_pairing(left, g1tmp, this->g);
     element_mul(left, this->R, left);
 
     element_pairing(right, this->g1, this->g);
@@ -204,15 +213,17 @@ int BLS_ZKPoS::verify(std::vector<int> index, Proof pi, std::vector<myelement> n
 
         mpz_set_str(mptmp, t1.c_str(), 2);
         this->H(mptmp);
-        element_pow_zn(tmp, this->hash_value, v[i].e);
-        element_mul(tmp2, tmp2, tmp);
+        element_pow_zn(g1tmp, this->hash_value, v[i].e);
+        element_mul(g1tmp2, g1tmp2, g1tmp);
     }
 
-    element_pow_zn(tmp2, tmp2, this->commitment);
-    element_pow_zn(tmp, this->u, pi.u);
-    element_mul(tmp, tmp, tmp2);
-    element_pairing(tmp, tmp, this->v);
+    element_pow_zn(g1tmp2, g1tmp2, this->commitment);
+    element_pow_zn(g1tmp, this->u, pi.u);
+    element_mul(g1tmp, g1tmp, g1tmp2);
+    element_pairing(tmp, g1tmp, this->v);
     element_mul(right, tmp, right);
+
+    element_printf("res:%B\n %B\n", left, right);
 
     if(!element_cmp(left, right))
         return 1;

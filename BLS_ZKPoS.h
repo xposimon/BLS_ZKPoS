@@ -62,10 +62,13 @@ public:
         element_init_Zr(this->rm, this->pairing);
         element_init_Zr(this->rsigma, this->pairing);
         element_init_Zr(this->p, this->pairing);
+        element_init_Zr(this->commitment, this->pairing);
+        element_init_Zr(this->small_hash_value, this->pairing);
         element_init_G2(this->g, this->pairing);
         element_init_G2(this->v, this->pairing);
         element_init_GT(this->pke, this->pairing);
         element_init_GT(this->R, this->pairing);
+
     }
     ~BLS_ZKPoS()
     {
@@ -88,7 +91,7 @@ public:
 private:
     int H(mpz_t z);//G1
     int h(element_t R);
-    element_t ssk, spk, x, v, g, g1, u, pke, hash_value, rm, rsigma, p, commitment, R;
+    element_t ssk, spk, x, v, g, g1, u, pke, hash_value, rm, rsigma, p, commitment, R, small_hash_value;
 };
 
 

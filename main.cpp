@@ -75,7 +75,7 @@ int main()
 #endif
     }
     fin.close(); // finish file handle
-    std::cout<<"commitment\n"<<std::endl;
+
     mpz_t commitment;
     mpz_init(commitment);
     bls_test->commit();
@@ -87,6 +87,8 @@ int main()
     fprintf(pFile, "\n");
 #endif
     //simulate challenge
+
+    std::cout<<"verify"<<std::endl;
     std::vector<myelement> v;
     bls_test->challenge(index, v, fileBlocks.size());
 
@@ -95,7 +97,9 @@ int main()
 #endif
     // generate proof
     Proof pi(bls_test->pairing);
+
     bls_test->prove(index, v, fileBlocks, auth, pi);
+
 #ifdef TEST
     endTime = clock();
     stepTime.push_back((double)(endTime-startTime)/CLOCKS_PER_SEC);
