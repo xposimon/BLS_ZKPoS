@@ -3,7 +3,6 @@
 int BLS_ZKPoS::H(mpz_t z)
 {
     // TODO simple Hash, not secure, return u^z
-    element_printf("%B\n", this->u);
     element_mul_mpz(this->hash_value, this->u, z); // TODO not clear tmp, is there a destructor in mpz_t?
     return 1;
 };
@@ -20,7 +19,6 @@ int BLS_ZKPoS::exportPk(std::string pkFileName)
 {
     FILE *pFile;
     pFile = fopen(pkFileName.c_str(), "w");
-
     return 1;
 }
 
@@ -70,7 +68,7 @@ int BLS_ZKPoS::sigGen(std::vector<safe_mpz> file, std::vector<myelement>& auth, 
         element_to_mpz(mptmp, names[i].e);
         mp2bitString(mptmp, t1);
 
-        gmp_printf("%Zd\n", mptmp);
+
 
 
         t1 = t2+t1; // name||i bit concat
@@ -78,12 +76,12 @@ int BLS_ZKPoS::sigGen(std::vector<safe_mpz> file, std::vector<myelement>& auth, 
 
         mpz_set_str(mptmp, t1.c_str(), 2);
 
+        gmp_printf("%Zd\n", mptmp);
         this->H(mptmp);
 
         element_pow_mpz(auth[i].e, this->u, file[i].z);
         element_mul(auth[i].e, this->hash_value, auth[i].e);
         element_pow_zn(auth[i].e, auth[i].e, this->x);
-        element_printf("???%B\n", auth[i].e);
     }
     mpz_clear(mptmp);
     return 1;
@@ -101,11 +99,14 @@ int BLS_ZKPoS::commit()
     element_printf("rm:%B\n", this->rm);
 
     element_pairing(tmp, this->g1, this->g);
-
     element_pow_zn(tmp, tmp, this->rsigma);
     element_set(this->R, tmp);
-    this->h(tmp);
+    element_pairing(tmp, this->u, this->v);
+    element_pow_zn(tmp, tmp, this->rm);
+    element_mul(this->R, this->R, tmp);
+    this->h(this->R);
     element_set(this->commitment, this->small_hash_value);
+    element_printf("commit:%B\n", this->commitment);
     return 1;
 }
 
@@ -161,6 +162,7 @@ int BLS_ZKPoS::prove(std::vector<int> index, std::vector<myelement> v, std::vect
     for (int i =0;i<len; i++)
     {
         element_mul_mpz(tmp, v[i].e, files[index[i]].z);
+        element_printf("tmp:%B %B\n", v[i].e, tmp);
         element_add(up, up, tmp); // u=sum(vi mi)
     }
     element_init_G1(tmp, this->pairing);
@@ -168,13 +170,23 @@ int BLS_ZKPoS::prove(std::vector<int> index, std::vector<myelement> v, std::vect
     {
         element_pow_zn(tmp, auth[index[i]].e, v[i].e);
         element_mul(sigma, sigma, tmp);
+        element_printf("sigma: %B\n %B\n", sigma, tmp);
     }
     element_mul(pi.u, this->commitment, up);
     element_add(pi.u, pi.u, this->rm);
     element_pow_zn(pi.lambda, this->g1, this->p);
     element_mul(pi.lambda, sigma, pi.lambda);
     element_mul(pi.ibzl, this->commitment, this->p);
-    element_mul(pi.ibzl, this->rsigma, pi.ibzl);
+    element_add(pi.ibzl, this->rsigma, pi.ibzl);
+
+    element_t T1, T2;
+    element_init_G1(T1, this->pairing);
+    element_init_GT(T2, this->pairing);
+    element_pow_zn(T1, this->g1, this->p);
+    element_mul(T1, T1, sigma);
+    element_pow_zn(T1, T1, this->commitment);
+    element_pairing(T2, T1, this->g);
+
     return 1;
 }
 
@@ -189,9 +201,19 @@ int BLS_ZKPoS::verify(std::vector<int> index, Proof pi, std::vector<myelement> n
     element_init_GT(tmp, this->pairing);
     element_set1(g1tmp2);
 
-    element_pow_zn(g1tmp, pi.ibzl, this->commitment);
+    element_pow_zn(g1tmp, pi.lambda, this->commitment);
     element_pairing(left, g1tmp, this->g);
+
     element_mul(left, this->R, left);
+
+    element_t T1, T2;
+    element_init_GT(T1, this->pairing);
+    element_init_GT(T2, this->pairing);
+    element_pairing(T1, this->g1, this->g);
+    element_pow_zn(T1, T1, this->rsigma);
+    element_pairing(T2, this->u, this->v);
+    element_pow_zn(T2, T2, this->rm);
+    element_mul(T1, T1, T2);
 
     element_pairing(right, this->g1, this->g);
     element_pow_zn(right, right, pi.ibzl);
@@ -205,7 +227,7 @@ int BLS_ZKPoS::verify(std::vector<int> index, Proof pi, std::vector<myelement> n
         mpz_set_ui(mptmp, index[i]);
         mp2bitString(mptmp, t2);
 
-        element_to_mpz(mptmp, names[i].e);
+        element_to_mpz(mptmp, names[index[i]].e);
         mp2bitString(mptmp, t1);
 
         t1 = t2+t1; // name||i bit concat

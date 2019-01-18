@@ -22,7 +22,7 @@ int main()
     // bls_test->dbg_importPk(5, 5, 163, 2, 1024, 4761);
 
     std::cout<<"\nReading File: "<<std::endl;
-    std::string filepath = std::string("../inputdata/1.in");
+    std::string filepath = std::string("../inputdata/100MB.in");
     std::ifstream fin(filepath.c_str(), std::ios::binary);
 
     std::vector<myelement> auth;
